@@ -13,21 +13,27 @@ const (
 )
 
 func main() {
-	fmt.Println("Good morning!")
-
 	var wG sync.WaitGroup
+
+	fmt.Println("Good morning!")
 
 	getReady(bob, &wG)
 	getReady(alice, &wG)
+
+	// Block until bob and alice are ready to rumble.
 	wG.Wait()
 
-	setAlarm()
-
+	alarm := setAlarm()
 	takeShoes(bob, &wG)
 	takeShoes(alice, &wG)
-	wG.Wait()
 
-	fmt.Println("Exiting and locking the door")
+	// Start goroutine to wait to finish putting on shoes.
+	// No blocking, due to the alarm has the possiblity to ring
+	// befor the shoes have been putted on.
+	waitShoes(&wG)
+
+	// Block until the alarm chan receive a signal.
+	waitAlarm(alarm)
 
 }
 
@@ -57,12 +63,27 @@ func takeShoes(name string, wG *sync.WaitGroup) {
 	})
 }
 
-func setAlarm() {
+func waitShoes(wG *sync.WaitGroup) {
+	go func() {
+		wG.Wait()
+		fmt.Println("Exiting and locking the door.")
+	}()
+}
+
+func setAlarm() <-chan struct{} {
 	fmt.Println("Set alarm")
+	done := make(chan struct{})
 
 	time.AfterFunc(60*time.Millisecond, func() {
 		fmt.Println("Alarms rings")
+		done <- struct{}{}
 	})
+
+	return done
+}
+
+func waitAlarm(d <-chan struct{}) {
+	<-d
 }
 
 func rD(seed rand.Source, s, e int64) time.Duration {
