@@ -23,7 +23,8 @@ func main() {
 	// Block until bob and alice are ready to rumble.
 	wG.Wait()
 
-	alarm := setAlarm()
+	var wG2 sync.WaitGroup
+	setAlarm(&wG2)
 	takeShoes(bob, &wG)
 	takeShoes(alice, &wG)
 
@@ -33,7 +34,7 @@ func main() {
 	waitShoes(&wG)
 
 	// Block until the alarm chan receive a signal.
-	waitAlarm(alarm)
+	waitAlarm(&wG2)
 
 }
 
@@ -70,20 +71,19 @@ func waitShoes(wG *sync.WaitGroup) {
 	}()
 }
 
-func setAlarm() <-chan struct{} {
+func setAlarm(wG *sync.WaitGroup) {
 	fmt.Println("Set alarm")
-	done := make(chan struct{})
+
+	wG.Add(1)
 
 	time.AfterFunc(60*time.Millisecond, func() {
+		defer wG.Done()
 		fmt.Println("Alarms rings")
-		done <- struct{}{}
 	})
-
-	return done
 }
 
-func waitAlarm(d <-chan struct{}) {
-	<-d
+func waitAlarm(wG *sync.WaitGroup) {
+	wG.Wait()
 }
 
 func rD(seed rand.Source, s, e int64) time.Duration {
